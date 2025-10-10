@@ -4,7 +4,7 @@ import { VictoryChart, VictoryTheme, VictoryAxis, VictoryArea } from 'victory';
 
 const { width } = Dimensions.get('window');
 
-export default function WeightGraph({ data, metrics }) {
+export default function WeightGraph({ data, metrics, chartWidth, chartHeight }) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Weight Sensor - Ground Force</Text>
@@ -13,8 +13,8 @@ export default function WeightGraph({ data, metrics }) {
         <View style={styles.chartContainer}>
           <VictoryChart
             theme={VictoryTheme.material}
-            width={width * 0.8}
-            height={240}
+            width={chartWidth || width * 0.8}
+            height={chartHeight || 240}
             padding={{ top: 20, bottom: 40, left: 50, right: 20 }}
             style={{
               background: { fill: 'transparent' }

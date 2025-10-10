@@ -4,7 +4,7 @@ import { VictoryChart, VictoryLine, VictoryTheme, VictoryAxis } from 'victory';
 
 const { width } = Dimensions.get('window');
 
-export default function IMUGraph({ data, currentResultant }) {
+export default function IMUGraph({ data, currentResultant, chartWidth, chartHeight }) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>IMU Sensor - 3D Orientation</Text>
@@ -13,8 +13,8 @@ export default function IMUGraph({ data, currentResultant }) {
         <View style={styles.chartContainer}>
           <VictoryChart
             theme={VictoryTheme.material}
-            width={width * 0.8}
-            height={240}
+            width={chartWidth || width * 0.8}
+            height={chartHeight || 240}
             padding={{ top: 20, bottom: 40, left: 50, right: 20 }}
             style={{
               background: { fill: 'transparent' }

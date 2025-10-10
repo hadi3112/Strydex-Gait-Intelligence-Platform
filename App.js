@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, Alert, Platform, StatusBar } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Alert, Platform, StatusBar, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import IMUGraph from './components/IMUGraph';
 import WeightGraph from './components/WeightGraph';
+import HipAngleGraph from './components/HipAngleGraph';
+import AGRFGraph from './components/AGRFGraph';
 import { generateWalkingData, calculateWeightMetrics } from './utils/mockDataGenerator';
 import init from 'react_native_mqtt';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -149,34 +151,62 @@ export default function App() {
         setWeightMetrics(calculateWeightMetrics(metricsData));
         return newIndex;
       });
-    }, 100);
+    }, 300);
     return () => clearInterval(interval);
   }, []);
 
   if (Platform.OS === 'web') {
     const currentResultant = imuSimData.length > 0 ? imuSimData[imuSimData.length - 1].resultant : 0;
     return (
-      <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
+      <View style={{ flex: 1, backgroundColor: '#0b1220' }}>
         <StatusBar barStyle="light-content" />
         <LinearGradient
-          colors={['#0f172a', '#1e293b', '#0f172a']}
+          colors={['#0b1220', '#0d1b2a', '#0b1220']}
           style={{ flex: 1 }}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingTop: 50 }} showsVerticalScrollIndicator={false}>
-            <View style={{ marginBottom: 24, alignItems: 'center' }}>
-              <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#e2e8f0', letterSpacing: 1, marginBottom: 4 }}>Gait Analysis Dashboard</Text>
-              <Text style={{ fontSize: 14, color: '#94a3b8', letterSpacing: 0.5 }}>Real-time Biomechanical Monitoring</Text>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingTop: 30 }} showsVerticalScrollIndicator={false}>
+            <View style={{ marginBottom: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Image
+                  source={require('./assets/strydex_logo-removebg-preview.png')}
+                  style={{ width: 120, height: 35, tintColor: '#e5e7eb', resizeMode: 'contain' }}
+                />
+              </View>
+              <View style={{ alignItems: 'center', flex: 1, marginLeft: 12 }}>
+                <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#e2e8f0', letterSpacing: 1 }}>Gait Analysis Dashboard</Text>
+                <Text style={{ fontSize: 13, color: '#94a3b8', letterSpacing: 0.5 }}>Real-time Biomechanical Monitoring</Text>
+              </View>
             </View>
 
-            <IMUGraph data={imuSimData} currentResultant={currentResultant} />
-            <WeightGraph data={weightSimData} metrics={weightMetrics} />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+              <View style={{ width: '48%' }}>
+                <IMUGraph data={imuSimData} currentResultant={currentResultant} chartWidth={500} chartHeight={200} />
+              </View>
+              <View style={{ width: '48%' }}>
+                <HipAngleGraph data={imuSimData.map(d => ({ time: d.time, hip: d.resultant }))} chartWidth={500} chartHeight={200} />
+              </View>
+              <View style={{ width: '48%' }}>
+                <WeightGraph data={weightSimData} metrics={weightMetrics} chartWidth={500} chartHeight={200} />
+              </View>
+              <View style={{ width: '48%' }}>
+                <AGRFGraph data={weightSimData} chartWidth={500} chartHeight={200} />
+              </View>
+            </View>
 
-            <View style={{ alignItems: 'center', marginTop: 12, marginBottom: 20, padding: 12, backgroundColor: 'rgba(15,23,42,0.6)', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(148,163,184,0.2)' }}>
-              <Text style={{ fontSize: 13, color: '#cbd5e0', fontWeight: '500' }}>
+            <View style={{ alignItems: 'center', marginTop: 16, marginBottom: 24 }}>
+              <Text style={{ fontSize: 13, color: '#cbd5e0', fontWeight: '500', marginBottom: 12 }}>
                 Elapsed: {imuSimData.length > 0 ? imuSimData[imuSimData.length - 1].time.toFixed(1) : '0.0'}s
               </Text>
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <View style={{ backgroundColor: '#0ea5e9', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(14,165,233,0.5)' }}>
+                  <Text style={{ color: '#e6f3ff', fontWeight: '600' }}>Record Again</Text>
+                </View>
+                <View style={{ backgroundColor: '#22c55e', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(34,197,94,0.5)' }}>
+                  <Text style={{ color: '#ecfdf5', fontWeight: '700' }}>Generate Report</Text>
+                </View>
+              </View>
             </View>
           </ScrollView>
         </LinearGradient>
