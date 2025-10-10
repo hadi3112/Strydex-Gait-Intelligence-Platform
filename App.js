@@ -187,12 +187,42 @@ export default function App() {
               </View>
             </View>
 
+            {/* Status chips */}
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14, justifyContent: 'center' }}>
+              {[
+                { key: 'start', label: 'Start' },
+                { key: 'learned', label: 'Learned' },
+                { key: 'predict', label: 'Predict' },
+                { key: 'end', label: 'End' }
+              ].map(chip => {
+                const active = statusStage === chip.key;
+                const baseColor = chip.key === 'predict' ? '#fbbf24' : chip.key === 'learned' ? '#22c55e' : chip.key === 'end' ? '#ef4444' : '#3b82f6';
+                return (
+                  <View key={chip.key} style={{
+                    backgroundColor: active ? baseColor : 'rgba(148,163,184,0.15)',
+                    borderColor: active ? baseColor : 'rgba(148,163,184,0.35)',
+                    borderWidth: 1,
+                    paddingVertical: 6,
+                    paddingHorizontal: 12,
+                    borderRadius: 9999
+                  }}>
+                    <Text style={{ color: active ? '#0b1220' : '#cbd5e1', fontWeight: '700', fontSize: 12 }}>{chip.label}</Text>
+                  </View>
+                );
+              })}
+            </View>
+
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
               <View style={{ width: '48%' }}>
                 <IMUGraph data={imuSimData} currentResultant={currentResultant} chartWidth={500} chartHeight={200} />
               </View>
               <View style={{ width: '48%' }}>
-                <HipAngleGraph data={imuSimData.map(d => ({ time: d.time, hip: d.resultant }))} chartWidth={500} chartHeight={200} />
+                <HipAngleGraph
+                  data={imuSimData.map(d => ({ time: d.time, hip: d.resultant, hipPred: d.hipPred }))}
+                  showPredicted={statusStage === 'predict' || statusStage === 'learned'}
+                  chartWidth={500}
+                  chartHeight={200}
+                />
               </View>
               <View style={{ width: '48%' }}>
                 <WeightGraph data={weightSimData} metrics={weightMetrics} chartWidth={500} chartHeight={200} />
@@ -206,6 +236,31 @@ export default function App() {
               <Text style={{ fontSize: 13, color: '#cbd5e0', fontWeight: '500', marginBottom: 12 }}>
                 Elapsed: {imuSimData.length > 0 ? imuSimData[imuSimData.length - 1].time.toFixed(1) : '0.0'}s
               </Text>
+              {/* Live vs Predicted difference */}
+              {(() => {
+                const last = imuSimData.length > 0 ? imuSimData[imuSimData.length - 1] : null;
+                const hasPred = last && typeof last.hipPred === 'number' && last.hipPred !== null;
+                const diff = hasPred ? Number((last.hipPred - last.resultant).toFixed(1)) : null;
+                if (!hasPred || !(statusStage === 'predict' || statusStage === 'learned')) return null;
+                return (
+                  <View style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 8,
+                    backgroundColor: 'rgba(251,191,36,0.12)',
+                    borderColor: 'rgba(251,191,36,0.45)',
+                    borderWidth: 1,
+                    paddingVertical: 8,
+                    paddingHorizontal: 12,
+                    borderRadius: 10,
+                    marginBottom: 10
+                  }}>
+                    <View style={{ width: 10, height: 10, borderRadius: 9999, backgroundColor: '#fbbf24' }} />
+                    <Text style={{ color: '#fde68a', fontWeight: '700' }}>Δ Predicted vs Live:</Text>
+                    <Text style={{ color: '#e5e7eb', fontWeight: '700' }}>{diff}°</Text>
+                  </View>
+                );
+              })()}
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 <View style={{ backgroundColor: '#0ea5e9', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(14,165,233,0.5)' }}>
                   <Text style={{ color: '#e6f3ff', fontWeight: '600' }}>Record Again</Text>
