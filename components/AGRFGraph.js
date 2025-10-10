@@ -30,6 +30,7 @@ export default function AGRFGraph({ data, chartWidth, chartHeight }) {
         height={chartHeight || 200}
         padding={{ top: 20, bottom: 40, left: 50, right: 20 }}
         style={{ background: { fill: 'transparent' } }}
+        domain={{ y: [0, 80] }}
       >
         <VictoryAxis
           style={{

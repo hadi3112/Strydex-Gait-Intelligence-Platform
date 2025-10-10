@@ -4,7 +4,7 @@ import { VictoryChart, VictoryTheme, VictoryAxis, VictoryArea } from 'victory';
 
 const { width } = Dimensions.get('window');
 
-export default function WeightGraph({ data, metrics }) {
+export default function WeightGraph({ data, metrics, chartWidth, chartHeight }) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Weight Sensor - Ground Force</Text>
@@ -13,8 +13,8 @@ export default function WeightGraph({ data, metrics }) {
         <View style={styles.chartContainer}>
           <VictoryChart
             theme={VictoryTheme.material}
-            width={width * 0.8}
-            height={240}
+            width={chartWidth || width * 0.8}
+            height={chartHeight || 240}
             padding={{ top: 20, bottom: 40, left: 50, right: 20 }}
             style={{
               background: { fill: 'transparent' }
@@ -58,17 +58,17 @@ export default function WeightGraph({ data, metrics }) {
 
         <View style={styles.metricsContainer}>
           <View style={styles.metricBox}>
-            <Text style={styles.metricLabel}>Average Force</Text>
-            <Text style={styles.metricValue}>{metrics.avgForce}</Text>
-            <Text style={styles.metricUnit}>kg</Text>
+            <Text style={[styles.metricLabel, { fontSize: 14, color: '#fcd34d' }]}>Average Force</Text>
+            <Text style={[styles.metricValue, { fontSize: 29 }]}>{metrics.avgForce}</Text>
+            <Text style={[styles.metricUnit, { fontSize: 13 }]}>kg</Text>
           </View>
 
           <View style={[styles.metricBox, { marginTop: 12 }]}>
-            <Text style={styles.metricLabel}>Ground Contact</Text>
-            <Text style={styles.metricValue}>{metrics.contactTime}</Text>
-            <Text style={styles.metricUnit}>seconds</Text>
+            <Text style={[styles.metricLabel, { fontSize: 14, color: '#fcd34d' }]}>Ground Contact</Text>
+            <Text style={[styles.metricValue, { fontSize: 29 }]}>{metrics.contactTime}</Text>
+            <Text style={[styles.metricUnit, { fontSize: 13 }]}>seconds</Text>
             <View style={styles.percentageContainer}>
-              <Text style={styles.percentageText}>{metrics.contactPercentage}% of cycle</Text>
+              <Text style={[styles.percentageText, { fontSize: 12 }]}>{metrics.contactPercentage}% of cycle</Text>
             </View>
           </View>
         </View>

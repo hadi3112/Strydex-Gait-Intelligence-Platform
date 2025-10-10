@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, Alert, Platform, StatusBar } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Alert, Platform, StatusBar, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import IMUGraph from './components/IMUGraph';
 import WeightGraph from './components/WeightGraph';
+import HipAngleGraph from './components/HipAngleGraph';
+import AGRFGraph from './components/AGRFGraph';
 import { generateWalkingData, calculateWeightMetrics } from './utils/mockDataGenerator';
 import init from 'react_native_mqtt';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -32,6 +34,7 @@ export default function App() {
     contactTime: 0,
     contactPercentage: 0
   });
+  const [statusStage, setStatusStage] = useState('start');
 
   useEffect(() => {
     // MQTT Configuration
@@ -147,38 +150,124 @@ export default function App() {
         setWeightSimData(fullWeightData.slice(startIndex, newIndex + 1));
         const metricsData = fullWeightData.slice(0, newIndex + 1);
         setWeightMetrics(calculateWeightMetrics(metricsData));
+
+        const t = fullImuData[newIndex].time;
+        if (t < 10) setStatusStage('start');
+        else if (t >= 10 && t < 12) setStatusStage('learned');
+        else if (t >= 12 && t < 40) setStatusStage('predict');
+        else setStatusStage('end');
         return newIndex;
       });
-    }, 100);
+    }, 300);
     return () => clearInterval(interval);
   }, []);
 
   if (Platform.OS === 'web') {
     const currentResultant = imuSimData.length > 0 ? imuSimData[imuSimData.length - 1].resultant : 0;
     return (
-      <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
+      <View style={{ flex: 1, backgroundColor: '#0b1220' }}>
         <StatusBar barStyle="light-content" />
         <LinearGradient
-          colors={['#0f172a', '#1e293b', '#0f172a']}
+          colors={['#0b1220', '#0d1b2a', '#0b1220']}
           style={{ flex: 1 }}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingTop: 50 }} showsVerticalScrollIndicator={false}>
-            <View style={{ marginBottom: 24, alignItems: 'center' }}>
-              <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#e2e8f0', letterSpacing: 1, marginBottom: 4 }}>Gait Analysis Dashboard</Text>
-              <Text style={{ fontSize: 14, color: '#94a3b8', letterSpacing: 0.5 }}>Real-time Biomechanical Monitoring</Text>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingTop: 30 }} showsVerticalScrollIndicator={false}>
+            <View style={{ marginBottom: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ backgroundColor: '#ffffff', borderRadius: 9999, paddingVertical: 6, paddingHorizontal: 10, shadowColor: '#000', shadowOpacity: 0.15, shadowOffset: { width: 0, height: 2 }, shadowRadius: 6 }}>
+                <Image
+                  source={require('./assets/strydex_logo-removebg-preview.png')}
+                  style={{ width: 140, height: 40, resizeMode: 'contain' }}
+                />
+              </View>
+              <View style={{ alignItems: 'center', flex: 1, marginLeft: 12 }}>
+                <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#e2e8f0', letterSpacing: 1, textAlign: 'center' }}>Gait Analysis Dashboard</Text>
+                <Text style={{ fontSize: 13, color: '#94a3b8', letterSpacing: 0.5, textAlign: 'center' }}>Physiotherapy Walking Trial & Gait Assessment</Text>
+              </View>
             </View>
 
-            <IMUGraph data={imuSimData} currentResultant={currentResultant} />
-            <WeightGraph data={weightSimData} metrics={weightMetrics} />
+            <View style={{ alignItems: 'center', marginBottom: 12 }}>
+              {statusStage === 'start' && (
+                <View style={{ backgroundColor: 'rgba(96,165,250,0.15)', borderColor: '#60a5fa', borderWidth: 1, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 9999 }}>
+                  <Text style={{ color: '#93c5fd', fontWeight: '600' }}>Walking Simulation Started</Text>
+                </View>
+              )}
+              {statusStage === 'learned' && (
+                <View style={{ backgroundColor: 'rgba(250,204,21,0.15)', borderColor: '#facc15', borderWidth: 1, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 9999 }}>
+                  <Text style={{ color: '#fde047', fontWeight: '600' }}>Walking Patterns Learned</Text>
+                </View>
+              )}
+              {statusStage === 'predict' && (
+                <View style={{ backgroundColor: 'rgba(34,197,94,0.15)', borderColor: '#22c55e', borderWidth: 1, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 9999 }}>
+                  <Text style={{ color: '#86efac', fontWeight: '600' }}>Simulating Predicted Walking</Text>
+                </View>
+              )}
+              {statusStage === 'end' && (
+                <View style={{ backgroundColor: 'rgba(148,163,184,0.15)', borderColor: '#94a3b8', borderWidth: 1, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 9999 }}>
+                  <Text style={{ color: '#cbd5e1', fontWeight: '600' }}>End of Simulation</Text>
+                </View>
+              )}
+            </View>
 
-            <View style={{ alignItems: 'center', marginTop: 12, marginBottom: 20, padding: 12, backgroundColor: 'rgba(15,23,42,0.6)', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(148,163,184,0.2)' }}>
-              <Text style={{ fontSize: 13, color: '#cbd5e0', fontWeight: '500' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+              <View style={{ width: '48%' }}>
+                <IMUGraph data={imuSimData} currentResultant={currentResultant} chartWidth={350} chartHeight={140} />
+              </View>
+              <View style={{ width: '48%' }}>
+                <HipAngleGraph data={imuSimData.map(d => ({ time: d.time, hip: d.resultant, hipPred: d.hipPred }))} showPredicted chartWidth={350} chartHeight={140} />
+              </View>
+              <View style={{ width: '48%' }}>
+                <WeightGraph data={weightSimData} metrics={weightMetrics} chartWidth={350} chartHeight={140} />
+              </View>
+              <View style={{ width: '48%' }}>
+                <AGRFGraph data={weightSimData} chartWidth={350} chartHeight={140} />
+              </View>
+            </View>
+
+            <View style={{ alignItems: 'center', marginTop: 16, marginBottom: 96 }}>
+              <Text style={{ fontSize: 13, color: '#cbd5e0', fontWeight: '500', marginBottom: 12 }}>
                 Elapsed: {imuSimData.length > 0 ? imuSimData[imuSimData.length - 1].time.toFixed(1) : '0.0'}s
               </Text>
+              {/* Spacer; buttons are fixed at bottom */}
             </View>
           </ScrollView>
+
+          {/* Fixed bottom-center actions */}
+          <View style={{ position: 'fixed', left: 0, right: 0, bottom: 24, alignItems: 'center' }}>
+            <View style={{ flexDirection: 'row', gap: 18, justifyContent: 'center' }}>
+              <View style={{ backgroundColor: '#0ea5e9', paddingVertical: 16, paddingHorizontal: 28, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(14,165,233,0.5)', shadowColor: '#000', shadowOpacity: 0.25, shadowOffset: { width: 0, height: 6 }, shadowRadius: 16 }} onTouchEnd={() => {
+                // full restart: re-generate and restart timer
+                const { imuData: fullImuData, weightData: fullWeightData } = generateWalkingData(40);
+                setImuSimData([]);
+                setWeightSimData([]);
+                setCurrentIndexSim(0);
+                setWeightMetrics({ avgForce: 0, contactTime: 0, contactPercentage: 0 });
+                setStatusStage('start');
+                let idx = 0;
+                const interval = setInterval(() => {
+                  idx += 1;
+                  if (idx >= fullImuData.length) { clearInterval(interval); return; }
+                  const displayWindow = 50;
+                  const startIndex = Math.max(0, idx - displayWindow);
+                  setImuSimData(fullImuData.slice(startIndex, idx + 1));
+                  setWeightSimData(fullWeightData.slice(startIndex, idx + 1));
+                  const metricsData = fullWeightData.slice(0, idx + 1);
+                  setWeightMetrics(calculateWeightMetrics(metricsData));
+                  const t = fullImuData[idx].time;
+                  if (t < 10) setStatusStage('start');
+                  else if (t >= 10 && t < 12) setStatusStage('learned');
+                  else if (t >= 12 && t < 40) setStatusStage('predict');
+                  else setStatusStage('end');
+                }, 300);
+              }}>
+                <Text style={{ color: '#e6f3ff', fontWeight: '700', fontSize: 16 }}>Record Again</Text>
+              </View>
+              <View style={{ backgroundColor: '#22c55e', paddingVertical: 16, paddingHorizontal: 28, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(34,197,94,0.5)', shadowColor: '#000', shadowOpacity: 0.25, shadowOffset: { width: 0, height: 6 }, shadowRadius: 16 }}>
+                <Text style={{ color: '#ecfdf5', fontWeight: '800', fontSize: 16 }}>Generate Report</Text>
+              </View>
+            </View>
+          </View>
         </LinearGradient>
       </View>
     );

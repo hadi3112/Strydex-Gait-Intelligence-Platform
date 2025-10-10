@@ -4,7 +4,7 @@ import { VictoryChart, VictoryLine, VictoryTheme, VictoryAxis } from 'victory';
 
 const { width } = Dimensions.get('window');
 
-export default function IMUGraph({ data, currentResultant }) {
+export default function IMUGraph({ data, currentResultant, chartWidth, chartHeight }) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>IMU Sensor - 3D Orientation</Text>
@@ -13,8 +13,8 @@ export default function IMUGraph({ data, currentResultant }) {
         <View style={styles.chartContainer}>
           <VictoryChart
             theme={VictoryTheme.material}
-            width={width * 0.8}
-            height={240}
+            width={chartWidth || width * 0.8}
+            height={chartHeight || 240}
             padding={{ top: 20, bottom: 40, left: 50, right: 20 }}
             style={{
               background: { fill: 'transparent' }
@@ -84,11 +84,10 @@ export default function IMUGraph({ data, currentResultant }) {
 
         <View style={styles.metricsContainer}>
           <View style={styles.metricBox}>
-            <Text style={styles.metricLabel}>Resultant 3D</Text>
-            <Text style={styles.metricLabel}>Orientation</Text>
-            <Text style={styles.metricValue}>{currentResultant}°</Text>
+            <Text style={[styles.metricLabel, { fontSize: 14 }]}>Resultant 3D Orientation</Text>
+            <Text style={[styles.metricValue, { fontSize: 30 }]}>{currentResultant}°</Text>
             <View style={styles.rangeIndicator}>
-              <Text style={styles.rangeText}>Range: -8° to 25°</Text>
+              <Text style={[styles.rangeText, { fontSize: 11 }]}>Range: -8° to 25°</Text>
             </View>
           </View>
         </View>

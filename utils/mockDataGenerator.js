@@ -7,6 +7,13 @@ function generateSin(time, period, amplitude, phase = 0) {
   return amplitude * Math.sin(omega * time + phase);
 }
 
+function triangleWave(time, period, amplitude) {
+  // Triangle wave in range [-amplitude, amplitude]
+  const t = (time % period) / period; // 0..1
+  const tri01 = 1 - Math.abs(2 * t - 1); // 0..1..0
+  return (tri01 * 2 - 1) * amplitude; // -amp..+amp
+}
+
 export function generateWalkingData(totalSeconds = 40, sampleRateHz = 10) {
   const dt = 1 / sampleRateHz;
   const numSamples = Math.floor(totalSeconds * sampleRateHz);
@@ -35,7 +42,16 @@ export function generateWalkingData(totalSeconds = 40, sampleRateHz = 10) {
     const resultantRaw = 0.5 * x + 0.3 * y + 0.2 * z;
     const resultant = clamp(resultantRaw, -8, 25);
 
-    imuData.push({ time: Number(t.toFixed(1)), x, y, z, resultant: Number(resultant.toFixed(1)) });
+    // Predicted hip angle series (after 10s): diverge more and add a triangle-like modulation
+    const idx = i;
+    const showPred = t >= 10;
+    const deltaBase = idx % 4 === 0 ? 4 : 2; // 4° every 4th point, else 2°
+    const sign = (idx % 8 < 4) ? 1 : -1; // alternate sign every 4 steps
+    const tri = triangleWave(t, stepPeriod * 2, 4); // triangle modulation +/-4°
+    const hipPredRaw = showPred ? (resultant + sign * deltaBase + tri * 0.8) : NaN;
+    const hipPred = showPred ? clamp(hipPredRaw, -8, 25) : NaN;
+
+    imuData.push({ time: Number(t.toFixed(1)), x, y, z, resultant: Number(resultant.toFixed(1)), hipPred: showPred ? Number(hipPred.toFixed(1)) : null });
 
     // Weight data (kg), simulate double-hump during stance phase
     const stance = Math.max(0, generateSin(t, stepPeriod, 1)); // 0..1
