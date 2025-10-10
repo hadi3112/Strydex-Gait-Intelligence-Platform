@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, Alert } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Alert, Platform, StatusBar } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import IMUGraph from './components/IMUGraph';
+import WeightGraph from './components/WeightGraph';
+import { generateWalkingData, calculateWeightMetrics } from './utils/mockDataGenerator';
 import init from 'react_native_mqtt';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -18,6 +22,16 @@ export default function App() {
   const [textMessage, setTextMessage] = useState('Waiting for messages...');
   const [isConnected, setIsConnected] = useState(false);
   const [messageLog, setMessageLog] = useState([]);
+
+  // Web-only simulated data state
+  const [imuSimData, setImuSimData] = useState([]);
+  const [weightSimData, setWeightSimData] = useState([]);
+  const [currentIndexSim, setCurrentIndexSim] = useState(0);
+  const [weightMetrics, setWeightMetrics] = useState({
+    avgForce: 0,
+    contactTime: 0,
+    contactPercentage: 0
+  });
 
   useEffect(() => {
     // MQTT Configuration
@@ -115,6 +129,60 @@ export default function App() {
       }
     };
   }, []);
+
+  // Simulated data for web preview (no MQTT)
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const { imuData: fullImuData, weightData: fullWeightData } = generateWalkingData(40);
+    const interval = setInterval(() => {
+      setCurrentIndexSim(prevIndex => {
+        const newIndex = prevIndex + 1;
+        if (newIndex >= fullImuData.length) {
+          clearInterval(interval);
+          return prevIndex;
+        }
+        const displayWindow = 50;
+        const startIndex = Math.max(0, newIndex - displayWindow);
+        setImuSimData(fullImuData.slice(startIndex, newIndex + 1));
+        setWeightSimData(fullWeightData.slice(startIndex, newIndex + 1));
+        const metricsData = fullWeightData.slice(0, newIndex + 1);
+        setWeightMetrics(calculateWeightMetrics(metricsData));
+        return newIndex;
+      });
+    }, 100);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (Platform.OS === 'web') {
+    const currentResultant = imuSimData.length > 0 ? imuSimData[imuSimData.length - 1].resultant : 0;
+    return (
+      <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
+        <StatusBar barStyle="light-content" />
+        <LinearGradient
+          colors={['#0f172a', '#1e293b', '#0f172a']}
+          style={{ flex: 1 }}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingTop: 50 }} showsVerticalScrollIndicator={false}>
+            <View style={{ marginBottom: 24, alignItems: 'center' }}>
+              <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#e2e8f0', letterSpacing: 1, marginBottom: 4 }}>Gait Analysis Dashboard</Text>
+              <Text style={{ fontSize: 14, color: '#94a3b8', letterSpacing: 0.5 }}>Real-time Biomechanical Monitoring</Text>
+            </View>
+
+            <IMUGraph data={imuSimData} currentResultant={currentResultant} />
+            <WeightGraph data={weightSimData} metrics={weightMetrics} />
+
+            <View style={{ alignItems: 'center', marginTop: 12, marginBottom: 20, padding: 12, backgroundColor: 'rgba(15,23,42,0.6)', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(148,163,184,0.2)' }}>
+              <Text style={{ fontSize: 13, color: '#cbd5e0', fontWeight: '500' }}>
+                Elapsed: {imuSimData.length > 0 ? imuSimData[imuSimData.length - 1].time.toFixed(1) : '0.0'}s
+              </Text>
+            </View>
+          </ScrollView>
+        </LinearGradient>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
