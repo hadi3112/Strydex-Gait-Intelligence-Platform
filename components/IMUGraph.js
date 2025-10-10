@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import { VictoryChart, VictoryLine, VictoryTheme, VictoryAxis, VictoryLegend } from 'victory-native';
+import { VictoryChart, VictoryLine, VictoryTheme, VictoryAxis, VictoryLabel } from 'victory-native';
 
 const { width } = Dimensions.get('window');
 
@@ -24,20 +24,20 @@ export default function IMUGraph({ data, currentResultant }) {
               style={{
                 axis: { stroke: '#4a5568' },
                 tickLabels: { fill: '#a0aec0', fontSize: 10 },
-                grid: { stroke: '#2d3748', strokeDasharray: '3,3' }
+                grid: { stroke: '#2d3748', strokeDasharray: '3,3' },
+                axisLabel: { fill: '#cbd5e0', fontSize: 11, padding: 30 }
               }}
               label="Time (s)"
-              axisLabelComponent={<Text style={{ fill: '#cbd5e0', fontSize: 11 }} />}
             />
             <VictoryAxis
               dependentAxis
               style={{
                 axis: { stroke: '#4a5568' },
                 tickLabels: { fill: '#a0aec0', fontSize: 10 },
-                grid: { stroke: '#2d3748', strokeDasharray: '3,3' }
+                grid: { stroke: '#2d3748', strokeDasharray: '3,3' },
+                axisLabel: { fill: '#cbd5e0', fontSize: 11, padding: 36 }
               }}
               label="Angle (°)"
-              axisLabelComponent={<Text style={{ fill: '#cbd5e0', fontSize: 11 }} />}
             />
 
             <VictoryLine
