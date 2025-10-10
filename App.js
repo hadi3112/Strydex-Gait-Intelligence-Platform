@@ -175,61 +175,45 @@ export default function App() {
         >
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingTop: 30 }} showsVerticalScrollIndicator={false}>
             <View style={{ marginBottom: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <View style={{ backgroundColor: '#ffffff', borderRadius: 9999, paddingVertical: 6, paddingHorizontal: 10, shadowColor: '#000', shadowOpacity: 0.15, shadowOffset: { width: 0, height: 2 }, shadowRadius: 6 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Image
                   source={require('./assets/strydex_logo-removebg-preview.png')}
-                  style={{ width: 140, height: 40, resizeMode: 'contain' }}
+                  style={{ width: 120, height: 35, tintColor: '#e5e7eb', resizeMode: 'contain' }}
                 />
               </View>
               <View style={{ alignItems: 'center', flex: 1, marginLeft: 12 }}>
-                <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#e2e8f0', letterSpacing: 1, textAlign: 'center' }}>Gait Analysis Dashboard</Text>
-                <Text style={{ fontSize: 13, color: '#94a3b8', letterSpacing: 0.5, textAlign: 'center' }}>Physiotherapy Walking Trial & Gait Assessment</Text>
+                <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#e2e8f0', letterSpacing: 1 }}>Gait Analysis Dashboard</Text>
+                <Text style={{ fontSize: 13, color: '#94a3b8', letterSpacing: 0.5 }}>Real-time Biomechanical Monitoring</Text>
               </View>
-            </View>
-
-            <View style={{ alignItems: 'center', marginBottom: 12 }}>
-              {statusStage === 'start' && (
-                <View style={{ backgroundColor: 'rgba(96,165,250,0.15)', borderColor: '#60a5fa', borderWidth: 1, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 9999 }}>
-                  <Text style={{ color: '#93c5fd', fontWeight: '600' }}>Walking Simulation Started</Text>
-                </View>
-              )}
-              {statusStage === 'learned' && (
-                <View style={{ backgroundColor: 'rgba(250,204,21,0.15)', borderColor: '#facc15', borderWidth: 1, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 9999 }}>
-                  <Text style={{ color: '#fde047', fontWeight: '600' }}>Walking Patterns Learned</Text>
-                </View>
-              )}
-              {statusStage === 'predict' && (
-                <View style={{ backgroundColor: 'rgba(34,197,94,0.15)', borderColor: '#22c55e', borderWidth: 1, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 9999 }}>
-                  <Text style={{ color: '#86efac', fontWeight: '600' }}>Simulating Predicted Walking</Text>
-                </View>
-              )}
-              {statusStage === 'end' && (
-                <View style={{ backgroundColor: 'rgba(148,163,184,0.15)', borderColor: '#94a3b8', borderWidth: 1, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 9999 }}>
-                  <Text style={{ color: '#cbd5e1', fontWeight: '600' }}>End of Simulation</Text>
-                </View>
-              )}
             </View>
 
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
               <View style={{ width: '48%' }}>
-                <IMUGraph data={imuSimData} currentResultant={currentResultant} chartWidth={350} chartHeight={140} />
+                <IMUGraph data={imuSimData} currentResultant={currentResultant} chartWidth={500} chartHeight={200} />
               </View>
               <View style={{ width: '48%' }}>
-                <HipAngleGraph data={imuSimData.map(d => ({ time: d.time, hip: d.resultant, hipPred: d.hipPred }))} showPredicted chartWidth={350} chartHeight={140} />
+                <HipAngleGraph data={imuSimData.map(d => ({ time: d.time, hip: d.resultant }))} chartWidth={500} chartHeight={200} />
               </View>
               <View style={{ width: '48%' }}>
-                <WeightGraph data={weightSimData} metrics={weightMetrics} chartWidth={350} chartHeight={140} />
+                <WeightGraph data={weightSimData} metrics={weightMetrics} chartWidth={500} chartHeight={200} />
               </View>
               <View style={{ width: '48%' }}>
-                <AGRFGraph data={weightSimData} chartWidth={350} chartHeight={140} />
+                <AGRFGraph data={weightSimData} chartWidth={500} chartHeight={200} />
               </View>
             </View>
 
-            <View style={{ alignItems: 'center', marginTop: 16, marginBottom: 96 }}>
+            <View style={{ alignItems: 'center', marginTop: 16, marginBottom: 24 }}>
               <Text style={{ fontSize: 13, color: '#cbd5e0', fontWeight: '500', marginBottom: 12 }}>
                 Elapsed: {imuSimData.length > 0 ? imuSimData[imuSimData.length - 1].time.toFixed(1) : '0.0'}s
               </Text>
-              {/* Spacer; buttons are fixed at bottom */}
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <View style={{ backgroundColor: '#0ea5e9', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(14,165,233,0.5)' }}>
+                  <Text style={{ color: '#e6f3ff', fontWeight: '600' }}>Record Again</Text>
+                </View>
+                <View style={{ backgroundColor: '#22c55e', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(34,197,94,0.5)' }}>
+                  <Text style={{ color: '#ecfdf5', fontWeight: '700' }}>Generate Report</Text>
+                </View>
+              </View>
             </View>
           </ScrollView>
 
