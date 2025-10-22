@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, Alert, Platform, StatusBar, Image } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { StyleSheet, Text, View, ScrollView, Alert, Platform, StatusBar, Image, TouchableOpacity, Animated, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import IMUGraph from './components/IMUGraph';
 import WeightGraph from './components/WeightGraph';
@@ -21,6 +21,7 @@ init({
 
 export default function App() {
   const [imuData, setImuData] = useState({});
+  const [weightData, setWeightData] = useState({});
   const [textMessage, setTextMessage] = useState('Waiting for messages...');
   const [isConnected, setIsConnected] = useState(false);
   const [messageLog, setMessageLog] = useState([]);
@@ -36,6 +37,35 @@ export default function App() {
   });
   const [statusStage, setStatusStage] = useState('start');
 
+  // Drawer state
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const drawerAnimation = useRef(new Animated.Value(Platform.OS === 'web' ? -500 : -300)).current; // Start completely off-screen
+  const screenWidth = Dimensions.get('window')?.width || 800; // Fallback for web
+
+  // Drawer animation functions
+  const toggleDrawer = () => {
+    console.log('Toggle drawer clicked, current state:', isDrawerOpen);
+    const drawerWidth = Platform.OS === 'web' ? 500 : 300;
+    const toValue = isDrawerOpen ? -drawerWidth : 0;
+    setIsDrawerOpen(!isDrawerOpen);
+    Animated.timing(drawerAnimation, {
+      toValue,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const closeDrawer = () => {
+    console.log('Close drawer clicked');
+    setIsDrawerOpen(false);
+    const drawerWidth = Platform.OS === 'web' ? 500 : 300;
+    Animated.timing(drawerAnimation, {
+      toValue: -drawerWidth,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  };
+
   useEffect(() => {
     // MQTT Configuration
     const brokerHost = 'test.mosquitto.org';
@@ -45,7 +75,17 @@ export default function App() {
     // Topics to subscribe to
     const topics = {
       imu: 'esp32/imu',
-      text: 'esp32/text_message' // New topic for simple text messages
+      weight: 'esp32/weight',
+      weightAlt: 'esp32/weight_sensor',
+      weightAlt2: 'esp32/weight_data',
+      text: 'esp32/text_message', // New topic for simple text messages
+      // Your specific ESP32 topics
+      servo: 'esp32/servo',
+      test11: 'esp32/test11',
+      test12: 'esp32/test12',
+      sensors: 'esp32/sensors',
+      temperature: 'esp32/temperature',
+      status: 'esp32/status'
     };
 
     // Connection success callback
@@ -55,9 +95,21 @@ export default function App() {
       
       // Subscribe to topics
       client.subscribe(topics.imu);
+      client.subscribe(topics.weight);
+      client.subscribe(topics.weightAlt);
+      client.subscribe(topics.weightAlt2);
       client.subscribe(topics.text);
+      client.subscribe(topics.servo);
+      client.subscribe(topics.test11);
+      client.subscribe(topics.test12);
+      client.subscribe(topics.sensors);
+      client.subscribe(topics.temperature);
+      client.subscribe(topics.status);
       
-      console.log(`Subscribed to ${topics.imu} and ${topics.text}`);
+      // Subscribe to ALL esp32 topics (wildcard)
+      client.subscribe('esp32/#');
+      
+      console.log(`Subscribed to all ESP32 topics including: ${topics.imu}, ${topics.weight}, ${topics.servo}, ${topics.test11}, ${topics.test12}, and esp32/# (all topics)`);
       Alert.alert('Success', 'Connected to MQTT broker!');
     }
 
@@ -76,7 +128,10 @@ export default function App() {
       const payload = message.payloadString;
       const timestamp = new Date().toLocaleTimeString();
       
-      console.log(`Message received on ${topic}: ${payload}`);
+      console.log(`🔍 MQTT Message received:`);
+      console.log(`   Topic: "${topic}"`);
+      console.log(`   Payload: "${payload}"`);
+      console.log(`   Time: ${timestamp}`);
       
       // Add to message log
       setMessageLog(prev => [...prev.slice(-9), {
@@ -91,12 +146,140 @@ export default function App() {
         try {
           const parsed = JSON.parse(payload);
           setImuData(parsed);
+          console.log("IMU data received:", parsed);
+          Alert.alert('IMU Sensor Connected', `AX: ${parsed.ax || parsed.x || 'N/A'}, AY: ${parsed.ay || parsed.y || 'N/A'}`);
         } catch (e) {
           console.log("Invalid IMU JSON message", payload);
+        }
+      } else if (topic === topics.weight || topic === topics.weightAlt || topic === topics.weightAlt2) {
+        try {
+          const parsed = JSON.parse(payload);
+          setWeightData(parsed);
+          console.log("Weight data received:", parsed);
+          Alert.alert('Weight Sensor Connected', `Weight: ${parsed.weight || parsed.value || 'N/A'} kg`);
+        } catch (e) {
+          console.log("Invalid Weight JSON message", payload);
+          // Try to parse as simple number
+          const weightValue = parseFloat(payload);
+          if (!isNaN(weightValue)) {
+            setWeightData({ weight: weightValue });
+            console.log("Weight data received (simple number):", weightValue);
+            Alert.alert('Weight Sensor Connected', `Weight: ${weightValue} kg`);
+          }
         }
       } else if (topic === topics.text) {
         // Handle simple text messages from ESP32
         setTextMessage(payload);
+      } else if (topic === topics.servo) {
+        // Handle servo data (could be weight/force data)
+        try {
+          const servoValue = parseFloat(payload);
+          if (!isNaN(servoValue)) {
+            setWeightData({ weight: servoValue });
+            console.log("✅ Servo data treated as weight:", servoValue);
+            Alert.alert('Servo/Weight Data', `Value: ${servoValue}`);
+          }
+        } catch (e) {
+          console.log("Invalid servo data:", payload);
+        }
+      } else if (topic === topics.test11) {
+        // Handle test11 data (looks like raw sensor readings - could be IMU)
+        try {
+          const values = payload.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+          if (values.length >= 6) {
+            // Assume first 6 values are AX, AY, AZ, GX, GY, GZ
+            const imuData = {
+              ax: values[0],
+              ay: values[1], 
+              az: values[2],
+              gx: values[3],
+              gy: values[4],
+              gz: values[5]
+            };
+            setImuData(imuData);
+            console.log("✅ Test11 data treated as IMU:", imuData);
+            Alert.alert('IMU Data (Test11)', `AX: ${imuData.ax}, AY: ${imuData.ay}, AZ: ${imuData.az}`);
+          }
+        } catch (e) {
+          console.log("Invalid test11 data:", payload);
+        }
+      } else if (topic === topics.test12) {
+        // Handle test12 data (looks like sensor data - could be weight or IMU)
+        try {
+          const values = payload.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+          if (values.length >= 2) {
+            // Try as weight data first
+            const weightValue = values[1]; // Second value looks like weight (2883)
+            if (weightValue > 0) {
+              setWeightData({ weight: weightValue });
+              console.log("✅ Test12 data treated as weight:", weightValue);
+              Alert.alert('Weight Data (Test12)', `Weight: ${weightValue}`);
+            }
+          }
+        } catch (e) {
+          console.log("Invalid test12 data:", payload);
+        }
+      } else if (topic === topics.sensors) {
+        // Handle sensors JSON data
+        try {
+          const parsed = JSON.parse(payload);
+          console.log("✅ Sensors data received:", parsed);
+          // Could contain temperature, humidity, etc.
+        } catch (e) {
+          console.log("Invalid sensors JSON:", payload);
+        }
+      } else if (topic === topics.temperature) {
+        // Handle temperature data (could be weight if it's actually a sensor reading)
+        try {
+          const tempValue = parseFloat(payload);
+          if (!isNaN(tempValue)) {
+            console.log("✅ Temperature data:", tempValue);
+            // Don't treat temperature as weight, just log it
+          }
+        } catch (e) {
+          console.log("Invalid temperature data:", payload);
+        }
+      } else if (topic === topics.status) {
+        // Handle status messages
+        console.log("✅ Status update:", payload);
+        if (payload === 'online') {
+          Alert.alert('ESP32 Status', 'Device is online!');
+        }
+      } else {
+        // Log unknown topics for debugging
+        console.log(`❓ Unknown topic received: ${topic} with payload: ${payload}`);
+        
+        // Check if it might be weight data on a different topic
+        const isWeightTopic = topic.toLowerCase().includes('weight') || 
+                             topic.toLowerCase().includes('force') || 
+                             topic.toLowerCase().includes('load') ||
+                             topic.toLowerCase().includes('pressure') ||
+                             topic.toLowerCase().includes('scale');
+        
+        if (isWeightTopic) {
+          console.log(`⚖️ Detected potential weight topic: ${topic}`);
+          try {
+            const parsed = JSON.parse(payload);
+            setWeightData(parsed);
+            console.log("✅ Weight data received from unknown topic:", parsed);
+            Alert.alert('Weight Sensor Connected', `Weight: ${parsed.weight || parsed.value || parsed.load || 'N/A'} kg`);
+          } catch (e) {
+            const weightValue = parseFloat(payload);
+            if (!isNaN(weightValue)) {
+              setWeightData({ weight: weightValue });
+              console.log("✅ Weight data received (simple number) from unknown topic:", weightValue);
+              Alert.alert('Weight Sensor Connected', `Weight: ${weightValue} kg`);
+            }
+          }
+        } else {
+          // Try to detect if it's a numeric value that could be weight
+          const numericValue = parseFloat(payload);
+          if (!isNaN(numericValue) && numericValue > 0 && numericValue < 1000) {
+            console.log(`🔢 Numeric value detected: ${numericValue} - might be weight data`);
+            setWeightData({ weight: numericValue });
+            Alert.alert('Possible Weight Data', `Detected value: ${numericValue} - treating as weight`);
+          }
+        }
       }
     }
 
@@ -162,11 +345,230 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
+  // Raw Data Drawer Component
+  const RawDataDrawer = () => {
+    // Check if we have real MQTT data (regardless of platform)
+    const hasRealMQTTData = isConnected && (imuData.ax !== undefined || imuData.x !== undefined);
+    
+    // For weight data, check if we have real weight data from MQTT
+    const hasWeightMQTTData = isConnected && (weightData.weight !== undefined || weightData.value !== undefined);
+    
+    // ONLY show real MQTT data when connected, NEVER show simulation data
+    const currentImuData = hasRealMQTTData ? imuData : null;
+    const currentWeightData = hasWeightMQTTData ? weightData : null; // Real weight data from MQTT
+
+    // Debug: Add console log to see if component is rendering
+    console.log('RawDataDrawer rendering:', { hasRealMQTTData, hasWeightMQTTData, isConnected });
+
+    return (
+      <Animated.View style={[
+        styles.drawer,
+        {
+          transform: [{ translateX: drawerAnimation }]
+        }
+      ]}>
+        <View style={styles.drawerHeader}>
+          <Text style={styles.drawerTitle}>Raw Sensor Data</Text>
+          <TouchableOpacity onPress={closeDrawer} style={styles.closeButton}>
+            <Text style={styles.closeButtonText}>×</Text>
+          </TouchableOpacity>
+        </View>
+        
+        <ScrollView 
+          style={styles.drawerContent}
+          showsVerticalScrollIndicator={true}
+          nestedScrollEnabled={false}
+        >
+          {/* Connection Status */}
+          <View style={styles.dataSection}>
+            <Text style={styles.sectionTitle}>Status</Text>
+            {Platform.OS === 'web' ? (
+              <View style={[styles.statusBox, { backgroundColor: hasRealMQTTData ? '#4CAF50' : '#F44336' }]}>
+                <Text style={styles.statusText}>
+                  {hasRealMQTTData ? '● Real Sensors Connected' : '● No Real Sensor Data'}
+                </Text>
+              </View>
+            ) : (
+              <>
+                <View style={[styles.statusBox, { backgroundColor: isConnected ? '#4CAF50' : '#F44336' }]}>
+                  <Text style={styles.statusText}>
+                    {isConnected ? '● MQTT Connected' : '● MQTT Disconnected'}
+                  </Text>
+                </View>
+                <View style={[styles.statusBox, { backgroundColor: (currentImuData || currentWeightData) ? '#4CAF50' : '#F44336', marginTop: 8 }]}>
+                  <Text style={styles.statusText}>
+                    {(currentImuData || currentWeightData) ? '● Sensors Active' : '● Sensors Inactive'}
+                  </Text>
+                </View>
+              </>
+            )}
+          </View>
+
+          {/* Text Message */}
+          <View style={styles.dataSection}>
+            <Text style={styles.sectionTitle}>
+              {Platform.OS === 'web' ? 'Simulation Info' : 'ESP32 Message'}
+            </Text>
+            <View style={styles.messageBox}>
+              <Text style={styles.messageText}>
+                {Platform.OS === 'web' 
+                  ? `Real sensors: ${hasRealMQTTData ? 'Connected' : 'Not connected'}\nData points: ${imuSimData.length}\nCurrent time: ${imuSimData.length > 0 ? imuSimData[imuSimData.length - 1].time.toFixed(1) + 's' : '0.0s'}`
+                  : textMessage
+                }
+              </Text>
+            </View>
+          </View>
+
+          {/* Sensor Data - Side by Side for Web */}
+          <View style={Platform.OS === 'web' ? styles.sensorDataContainer : styles.dataSection}>
+            {/* IMU Data */}
+            <View style={Platform.OS === 'web' ? styles.sensorDataColumn : styles.dataSection}>
+              <Text style={styles.sectionTitle}>IMU Sensor Data</Text>
+              {currentImuData && (currentImuData.ax !== undefined || currentImuData.x !== undefined) ? (
+                <View style={styles.sensorGrid}>
+                  <View style={styles.sensorRow}>
+                    <Text style={styles.sensorLabel}>AX:</Text>
+                    <Text style={styles.sensorValue}>{currentImuData.ax || currentImuData.x || 'N/A'}</Text>
+                  </View>
+                  <View style={styles.sensorRow}>
+                    <Text style={styles.sensorLabel}>AY:</Text>
+                    <Text style={styles.sensorValue}>{currentImuData.ay || currentImuData.y || 'N/A'}</Text>
+                  </View>
+                  <View style={styles.sensorRow}>
+                    <Text style={styles.sensorLabel}>AZ:</Text>
+                    <Text style={styles.sensorValue}>{currentImuData.az || currentImuData.z || 'N/A'}</Text>
+                  </View>
+                  <View style={styles.sensorRow}>
+                    <Text style={styles.sensorLabel}>GX:</Text>
+                    <Text style={styles.sensorValue}>{currentImuData.gx || 'N/A'}</Text>
+                  </View>
+                  <View style={styles.sensorRow}>
+                    <Text style={styles.sensorLabel}>GY:</Text>
+                    <Text style={styles.sensorValue}>{currentImuData.gy || 'N/A'}</Text>
+                  </View>
+                  <View style={styles.sensorRow}>
+                    <Text style={styles.sensorLabel}>GZ:</Text>
+                    <Text style={styles.sensorValue}>{currentImuData.gz || 'N/A'}</Text>
+                  </View>
+                  <View style={styles.sensorRow}>
+                    <Text style={styles.sensorLabel}>Resultant:</Text>
+                    <Text style={styles.sensorValue}>{currentImuData.resultant || 'N/A'}</Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.noDataContainer}>
+                <Text style={styles.noDataText}>
+                  {hasRealMQTTData 
+                    ? 'Waiting for real IMU data from ESP32...' 
+                    : !isConnected 
+                      ? 'MQTT disconnected - connect to ESP32' 
+                      : 'Waiting for IMU data from ESP32...'}
+                </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Weight Data */}
+            <View style={Platform.OS === 'web' ? styles.sensorDataColumn : styles.dataSection}>
+              <Text style={styles.sectionTitle}>Weight Sensor Data</Text>
+              {currentWeightData && (currentWeightData.weight !== undefined || currentWeightData.value !== undefined) ? (
+                <View style={styles.sensorGrid}>
+                  <View style={styles.sensorRow}>
+                    <Text style={styles.sensorLabel}>Weight:</Text>
+                    <Text style={styles.sensorValue}>{currentWeightData.weight || currentWeightData.value} kg</Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.noDataContainer}>
+                <Text style={styles.noDataText}>
+                  {hasWeightMQTTData 
+                    ? 'Waiting for real weight data from ESP32...' 
+                    : !isConnected 
+                      ? 'MQTT disconnected - connect to ESP32' 
+                      : 'Waiting for weight data from ESP32...'}
+                </Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* Message Log */}
+          <View style={styles.dataSection}>
+            <Text style={styles.sectionTitle}>
+              {Platform.OS === 'web' ? 'Simulation Data' : 'Recent Messages'}
+            </Text>
+            <View style={styles.logContainer}>
+              {Platform.OS === 'web' ? (
+                hasRealMQTTData ? (
+                  <View>
+                    <Text style={styles.simulationInfo}>
+                      🔗 MQTT Connected: {isConnected ? 'Yes' : 'No'}
+                    </Text>
+                    <Text style={styles.simulationInfo}>
+                      📡 IMU Data: {imuData.ax !== undefined ? 'Receiving' : 'Waiting'}
+                    </Text>
+                    <Text style={styles.simulationInfo}>
+                      ⚖️ Weight Data: {hasWeightMQTTData ? 'Receiving' : 'Waiting'}
+                    </Text>
+                    <Text style={styles.simulationInfo}>
+                      📊 Messages: {messageLog.length} received
+                    </Text>
+                  </View>
+                ) : (
+                  <View>
+                    <Text style={styles.simulationInfo}>
+                      📊 Total data points: {imuSimData.length}
+                    </Text>
+                    <Text style={styles.simulationInfo}>
+                      ⏱️ Current time: {imuSimData.length > 0 ? imuSimData[imuSimData.length - 1].time.toFixed(1) + 's' : '0.0s'}
+                    </Text>
+                    <Text style={styles.simulationInfo}>
+                      🎯 Status: {statusStage}
+                    </Text>
+                    <Text style={styles.simulationInfo}>
+                      📈 Weight metrics: Avg {weightMetrics.avgForce}kg, Contact {weightMetrics.contactPercentage}%
+                    </Text>
+                  </View>
+                )
+              ) : (
+                <>
+                  {messageLog.slice(-5).map(msg => (
+                    <View key={msg.id} style={styles.logItem}>
+                      <Text style={styles.logTime}>{msg.timestamp}</Text>
+                      <Text style={styles.logTopic}>[{msg.topic}]</Text>
+                      <Text style={styles.logPayload}>{msg.payload}</Text>
+                    </View>
+                  ))}
+                  {messageLog.length === 0 && (
+                    <Text style={styles.noDataText}>No messages yet...</Text>
+                  )}
+                </>
+              )}
+            </View>
+          </View>
+        </ScrollView>
+      </Animated.View>
+    );
+  };
+
   if (Platform.OS === 'web') {
     const currentResultant = imuSimData.length > 0 ? imuSimData[imuSimData.length - 1].resultant : 0;
     return (
       <View style={{ flex: 1, backgroundColor: '#0b1220' }}>
         <StatusBar barStyle="light-content" />
+        
+        {/* Floating Drawer Trigger */}
+        <TouchableOpacity 
+          style={styles.drawerTrigger}
+          onPress={toggleDrawer}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.drawerTriggerText}>📊</Text>
+        </TouchableOpacity>
+
+        {/* Raw Data Drawer */}
+        <RawDataDrawer />
+
         <LinearGradient
           colors={['#0b1220', '#0d1b2a', '#0b1220']}
           style={{ flex: 1 }}
@@ -314,6 +716,18 @@ export default function App() {
 
   return (
     <View style={styles.container}>
+      {/* Floating Drawer Trigger */}
+      <TouchableOpacity 
+        style={styles.drawerTrigger}
+        onPress={toggleDrawer}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.drawerTriggerText}>📊</Text>
+      </TouchableOpacity>
+
+      {/* Raw Data Drawer */}
+      <RawDataDrawer />
+
       <Text style={styles.title}>ESP32 MQTT Data</Text>
       
       {/* Connection Status */}
@@ -472,5 +886,214 @@ const styles = StyleSheet.create({
     color: '#999',
     fontStyle: 'italic',
     marginTop: 20
+  },
+  // Drawer styles
+  drawerTrigger: {
+    position: 'absolute',
+    left: 10,
+    top: '50%',
+    zIndex: 1000,
+    backgroundColor: '#2196F3',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    borderWidth: 2,
+    borderColor: '#1976D2',
+  },
+  drawerTriggerText: {
+    fontSize: 20,
+    color: 'white',
+  },
+  drawer: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: Platform.OS === 'web' ? 500 : 300,
+    backgroundColor: '#f8f9fa',
+    zIndex: 999,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  drawerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    paddingTop: 50,
+    backgroundColor: '#2196F3',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  drawerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  closeButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    fontSize: 20,
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  drawerContent: {
+    flex: 1,
+    padding: 15,
+  },
+  dataSection: {
+    marginBottom: 20,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 15,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#333',
+  },
+  statusBox: {
+    padding: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  statusText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  messageBox: {
+    backgroundColor: '#E3F2FD',
+    padding: 10,
+    borderRadius: 5,
+    borderLeftWidth: 4,
+    borderLeftColor: '#2196F3',
+  },
+  messageText: {
+    color: '#1976D2',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  sensorGrid: {
+    gap: 8,
+  },
+  sensorRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 5,
+    borderLeftWidth: 3,
+    borderLeftColor: '#4CAF50',
+  },
+  sensorLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    flex: 1,
+  },
+  sensorValue: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+    flex: 1,
+    textAlign: 'right',
+  },
+  noDataContainer: {
+    alignItems: 'center',
+    padding: 20,
+  },
+  noDataText: {
+    textAlign: 'center',
+    color: '#999',
+    fontStyle: 'italic',
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  connectionHint: {
+    textAlign: 'center',
+    color: '#666',
+    fontSize: 12,
+    fontStyle: 'italic',
+    backgroundColor: '#f0f0f0',
+    padding: 8,
+    borderRadius: 4,
+    borderLeftWidth: 3,
+    borderLeftColor: '#ff9800',
+  },
+  logContainer: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 5,
+    padding: 10,
+  },
+  logItem: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    paddingVertical: 6,
+  },
+  logTime: {
+    fontSize: 11,
+    color: '#666',
+  },
+  logTopic: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  logPayload: {
+    fontSize: 12,
+    color: '#555',
+    marginTop: 2,
+  },
+  simulationInfo: {
+    fontSize: 13,
+    color: '#333',
+    marginBottom: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: '#f0f8ff',
+    borderRadius: 4,
+    borderLeftWidth: 3,
+    borderLeftColor: '#2196F3',
+  },
+  sensorDataContainer: {
+    flexDirection: 'row',
+    gap: 15,
+    marginBottom: 20,
+  },
+  sensorDataColumn: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 15,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   }
 });
