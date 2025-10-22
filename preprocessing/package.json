@@ -1,0 +1,26 @@
+{
+  "name": "imu-preprocessing",
+  "version": "1.0.0",
+  "description": "IMU data preprocessing for gait analysis",
+  "main": "run_preprocessing.js",
+  "scripts": {
+    "preprocess": "node run_preprocessing.js preprocess",
+    "cleanup": "node run_preprocessing.js cleanup",
+    "install-deps": "pip install -r requirements.txt"
+  },
+  "dependencies": {
+    "child_process": "^1.0.2",
+    "path": "^0.12.7",
+    "fs": "^0.0.1-security"
+  },
+  "keywords": [
+    "imu",
+    "preprocessing",
+    "gait-analysis",
+    "lstm",
+    "machine-learning"
+  ],
+  "author": "Strydex Gait Intelligence Platform",
+  "license": "MIT"
+}
+
